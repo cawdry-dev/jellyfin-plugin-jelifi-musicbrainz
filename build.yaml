@@ -1,0 +1,19 @@
+name: "MusicBrainz Extended"
+guid: "b5d2f3a9-3e6b-4c12-9f7d-1a5e7c0b9a42"
+version: "1.0.0.0"
+targetAbi: "10.10.0.0"
+framework: "net8.0"
+overview: "MusicBrainz metadata with release-type tagging."
+description: >
+  Drop-in replacement for the built-in MusicBrainz metadata provider.
+  Adds release-group type tags (mb-type-album, mb-type-ep, mb-type-single,
+  mb-type-live, mb-type-compilation, mb-type-soundtrack, etc.) so client
+  apps can categorise an artist's discography by release type.
+category: "Metadata"
+owner: "cawdry-dev"
+artifacts:
+  - "Jellyfin.Plugin.MusicBrainzExtended.dll"
+changelog: |
+  ### 1.0.0.0
+  - Initial release. Forked from in-tree Jellyfin MusicBrainz provider.
+  - Adds release-group type tags during album metadata refresh.

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Jellyfin.Plugin.MusicBrainzExtended</RootNamespace>
+    <AssemblyName>Jellyfin.Plugin.MusicBrainzExtended</AssemblyName>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;SA1600;SA1601;SA1602;SA1611;SA1615;SA1623;SA1633</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.6" />
+    <PackageReference Include="Jellyfin.Model" Version="10.10.6" />
+    <PackageReference Include="Jellyfin.Extensions" Version="10.10.6" />
+    <PackageReference Include="MetaBrainz.MusicBrainz" Version="6.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Configuration\config.html" />
+    <EmbeddedResource Include="Configuration\config.html" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Plugin version (x.x.x.x)"
+        required: true
+        default: "1.0.0.0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build & package
+        run: ./scripts/package.sh "${{ steps.ver.outputs.version }}"
+
+      - name: Compute checksum & timestamp
+        id: meta
+        run: |
+          ZIP="artifacts/musicbrainzextended_${{ steps.ver.outputs.version }}.zip"
+          CHECKSUM=$(md5sum "$ZIP" | awk '{print $1}')
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "checksum=${CHECKSUM}" >> "$GITHUB_OUTPUT"
+          echo "timestamp=${TIMESTAMP}" >> "$GITHUB_OUTPUT"
+
+      - name: Update manifest.json
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+          version = "${{ steps.ver.outputs.version }}"
+          checksum = "${{ steps.meta.outputs.checksum }}"
+          timestamp = "${{ steps.meta.outputs.timestamp }}"
+          repo = os.environ["GITHUB_REPOSITORY"]
+          source_url = f"https://github.com/{repo}/releases/download/v{version}/musicbrainzextended_{version}.zip"
+
+          with open("manifest.json") as f:
+              data = json.load(f)
+          plugin = data[0]
+          entry = {
+              "version": version,
+              "changelog": f"Release {version}",
+              "targetAbi": "10.10.0.0",
+              "sourceUrl": source_url,
+              "checksum": checksum,
+              "timestamp": timestamp,
+          }
+          plugin["versions"] = [v for v in plugin["versions"] if v["version"] != version]
+          plugin["versions"].insert(0, entry)
+          with open("manifest.json", "w") as f:
+              json.dump(data, f, indent=2)
+          PY
+
+      - name: Commit manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git diff --cached --quiet || git commit -m "Update manifest for v${{ steps.ver.outputs.version }}"
+          git push origin HEAD:main || true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          files: artifacts/musicbrainzextended_${{ steps.ver.outputs.version }}.zip
+          generate_release_notes: true
