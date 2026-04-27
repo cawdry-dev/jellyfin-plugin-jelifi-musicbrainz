@@ -19,7 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          # Build from the tag's commit (or workflow_dispatch's HEAD) so the
+          # build matches what the user tagged. The "Commit manifest" step
+          # later switches to origin/main HEAD before pushing the manifest
+          # update, so this checkout can lag main without breaking pushes.
           fetch-depth: 0
 
       - name: Resolve version
