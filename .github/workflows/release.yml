@@ -18,6 +18,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Resolve version
         id: ver
@@ -45,16 +48,28 @@ jobs:
           echo "checksum=${CHECKSUM}" >> "$GITHUB_OUTPUT"
           echo "timestamp=${TIMESTAMP}" >> "$GITHUB_OUTPUT"
 
-      - name: Update manifest.json
+      - name: Commit manifest
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          CHECKSUM: ${{ steps.meta.outputs.checksum }}
+          TIMESTAMP: ${{ steps.meta.outputs.timestamp }}
         run: |
-          python3 - <<'PY'
-          import json, os, sys
-          version = "${{ steps.ver.outputs.version }}"
-          checksum = "${{ steps.meta.outputs.checksum }}"
-          timestamp = "${{ steps.meta.outputs.timestamp }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for i in 1 2 3 4 5; do
+            # Always re-apply against the latest origin/main so we never carry
+            # a stale base across retries.
+            git fetch origin main
+            git reset --hard origin/main
+
+            python3 - <<'PY'
+          import json, os
+          version = os.environ["VERSION"]
+          checksum = os.environ["CHECKSUM"]
+          timestamp = os.environ["TIMESTAMP"]
           repo = os.environ["GITHUB_REPOSITORY"]
           source_url = f"https://github.com/{repo}/releases/download/v{version}/jelifimusicbrainz_{version}.zip"
-
           with open("manifest.json") as f:
               data = json.load(f)
           plugin = data[0]
@@ -72,20 +87,16 @@ jobs:
               json.dump(data, f, indent=2)
           PY
 
-      - name: Commit manifest
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add manifest.json
-          if git diff --cached --quiet; then
-            echo "No manifest changes."
-            exit 0
-          fi
-          git commit -m "Update manifest for v${{ steps.ver.outputs.version }}"
-          for i in 1 2 3 4 5; do
-            git fetch origin main
-            git rebase origin/main && git push origin HEAD:main && exit 0
-            echo "Retry $i…"
+            git add manifest.json
+            if git diff --cached --quiet; then
+              echo "No manifest changes."
+              exit 0
+            fi
+            git commit -m "Update manifest for v${VERSION}"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push rejected, retry $i…"
             sleep 2
           done
           echo "Failed to push manifest after retries" >&2
