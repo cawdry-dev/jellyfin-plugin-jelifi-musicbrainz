@@ -4,7 +4,7 @@ using System.Linq;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 
-namespace Jellyfin.Plugin.MusicBrainzExtended.Music
+namespace Jellyfin.Plugin.JelifiMusicBrainz.Music
 {
     public static class AlbumInfoExtensions
     {

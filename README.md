@@ -1,4 +1,4 @@
-# Jellyfin MusicBrainz Extended
+# Jelifi MusicBrainz (Jellyfin plugin)
 
 Drop-in replacement for Jellyfin's built-in MusicBrainz metadata provider that
 also writes the **release-group type** to each album's `Tags` field.
@@ -34,22 +34,22 @@ Existing tags are preserved; only `mb-type-*` tags are rewritten.
 ### Option A — Plugin catalog (recommended)
 
 1. In Jellyfin, go to *Dashboard → Plugins → Repositories → +*.
-2. **Repository name**: `MusicBrainz Extended`
+2. **Repository name**: `Jelifi MusicBrainz`
    **Repository URL**:
-   `https://raw.githubusercontent.com/cawdry-dev/jellyfin-plugin-musicbrainz-extended/main/manifest.json`
+   `https://raw.githubusercontent.com/cawdry-dev/jellyfin-plugin-jelifi-musicbrainz/main/manifest.json`
 3. Save. The plugin appears under *Catalog → Metadata*.
 4. **Disable the built-in MusicBrainz** under
    *Dashboard → Libraries → Metadata downloaders → Music + Album*.
-5. Install *MusicBrainz Extended* from the catalog. Restart Jellyfin.
-6. **Enable** *MusicBrainz Extended* on the same metadata downloader page.
+5. Install *Jelifi MusicBrainz* from the catalog. Restart Jellyfin.
+6. **Enable** *Jelifi MusicBrainz* on the same metadata downloader page.
 7. Run a metadata refresh on your music library.
 
 ### Option B — Manual sideload
 
 1. Disable the built-in MusicBrainz provider as above.
-2. Download `musicbrainzextended_<version>.zip` from the
-   [releases page](https://github.com/cawdry-dev/jellyfin-plugin-musicbrainz-extended/releases).
-3. Extract into `<jellyfin-data>/plugins/MusicBrainzExtended_<version>/`.
+2. Download `jelifimusicbrainz_<version>.zip` from the
+   [releases page](https://github.com/cawdry-dev/jellyfin-plugin-jelifi-musicbrainz/releases).
+3. Extract into `<jellyfin-data>/plugins/JelifiMusicBrainz_<version>/`.
 4. Restart Jellyfin, enable, refresh.
 
 ## Build & package locally
@@ -58,7 +58,7 @@ Existing tags are preserved; only `mb-type-*` tags are rewritten.
 ./scripts/package.sh 1.0.0.0
 ```
 
-Produces `artifacts/musicbrainzextended_1.0.0.0.zip` and prints the md5
+Produces `artifacts/jelifimusicbrainz_1.0.0.0.zip` and prints the md5
 checksum + timestamp you'd paste into `manifest.json`.
 
 ## Release
@@ -77,7 +77,7 @@ and updates `manifest.json` with the new version + checksum.
 
 Forked from the in-tree MusicBrainz provider in
 [jellyfin/jellyfin](https://github.com/jellyfin/jellyfin/tree/master/MediaBrowser.Providers/Plugins/MusicBrainz)
-(GPL-2.0). Namespace renamed to `Jellyfin.Plugin.MusicBrainzExtended`, plugin
+(GPL-2.0). Namespace renamed to `Jellyfin.Plugin.JelifiMusicBrainz`, plugin
 GUID changed, and `MusicBrainzAlbumProvider` extended with release-type tagging.
 
 ## License

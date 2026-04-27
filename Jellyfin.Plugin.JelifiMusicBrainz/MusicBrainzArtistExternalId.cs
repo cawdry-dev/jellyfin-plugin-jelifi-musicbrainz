@@ -3,12 +3,12 @@ using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Providers;
 
-namespace Jellyfin.Plugin.MusicBrainzExtended;
+namespace Jellyfin.Plugin.JelifiMusicBrainz;
 
 /// <summary>
-/// MusicBrainz other artist external id.
+/// MusicBrainz artist external id.
 /// </summary>
-public class MusicBrainzOtherArtistExternalId : IExternalId
+public class MusicBrainzArtistExternalId : IExternalId
 {
     /// <inheritdoc />
     public string ProviderName => "MusicBrainz";
@@ -17,11 +17,11 @@ public class MusicBrainzOtherArtistExternalId : IExternalId
     public string Key => MetadataProvider.MusicBrainzArtist.ToString();
 
     /// <inheritdoc />
-    public ExternalIdMediaType? Type => ExternalIdMediaType.OtherArtist;
+    public ExternalIdMediaType? Type => ExternalIdMediaType.Artist;
 
     /// <inheritdoc />
     public string UrlFormatString => Plugin.Instance!.Configuration.Server + "/artist/{0}";
 
     /// <inheritdoc />
-    public bool Supports(IHasProviderIds item) => item is Audio or MusicAlbum;
+    public bool Supports(IHasProviderIds item) => item is MusicArtist;
 }

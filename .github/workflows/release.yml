@@ -39,7 +39,7 @@ jobs:
       - name: Compute checksum & timestamp
         id: meta
         run: |
-          ZIP="artifacts/musicbrainzextended_${{ steps.ver.outputs.version }}.zip"
+          ZIP="artifacts/jelifimusicbrainz_${{ steps.ver.outputs.version }}.zip"
           CHECKSUM=$(md5sum "$ZIP" | awk '{print $1}')
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           echo "checksum=${CHECKSUM}" >> "$GITHUB_OUTPUT"
@@ -53,7 +53,7 @@ jobs:
           checksum = "${{ steps.meta.outputs.checksum }}"
           timestamp = "${{ steps.meta.outputs.timestamp }}"
           repo = os.environ["GITHUB_REPOSITORY"]
-          source_url = f"https://github.com/{repo}/releases/download/v{version}/musicbrainzextended_{version}.zip"
+          source_url = f"https://github.com/{repo}/releases/download/v{version}/jelifimusicbrainz_{version}.zip"
 
           with open("manifest.json") as f:
               data = json.load(f)
@@ -84,5 +84,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}
-          files: artifacts/musicbrainzextended_${{ steps.ver.outputs.version }}.zip
+          files: artifacts/jelifimusicbrainz_${{ steps.ver.outputs.version }}.zip
           generate_release_notes: true

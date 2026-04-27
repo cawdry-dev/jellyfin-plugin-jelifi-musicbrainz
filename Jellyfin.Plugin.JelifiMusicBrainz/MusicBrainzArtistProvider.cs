@@ -10,14 +10,14 @@ using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Providers;
-using Jellyfin.Plugin.MusicBrainzExtended.Music;
-using Jellyfin.Plugin.MusicBrainzExtended.Configuration;
+using Jellyfin.Plugin.JelifiMusicBrainz.Music;
+using Jellyfin.Plugin.JelifiMusicBrainz.Configuration;
 using MetaBrainz.MusicBrainz;
 using MetaBrainz.MusicBrainz.Interfaces.Entities;
 using MetaBrainz.MusicBrainz.Interfaces.Searches;
 using Microsoft.Extensions.Logging;
 
-namespace Jellyfin.Plugin.MusicBrainzExtended;
+namespace Jellyfin.Plugin.JelifiMusicBrainz;
 
 /// <summary>
 /// MusicBrainz artist provider.
