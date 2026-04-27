@@ -1,6 +1,6 @@
 using MediaBrowser.Model.Plugins;
 
-namespace Jellyfin.Plugin.MusicBrainzExtended.Configuration;
+namespace Jellyfin.Plugin.JelifiMusicBrainz.Configuration;
 
 /// <summary>
 /// MusicBrainz plugin configuration.

@@ -1,5 +1,5 @@
-name: "MusicBrainz Extended"
-guid: "b5d2f3a9-3e6b-4c12-9f7d-1a5e7c0b9a42"
+name: "Jelifi MusicBrainz"
+guid: "1446d25d-82be-4a1b-bc6c-0c42b1723b2f"
 version: "1.0.0.0"
 targetAbi: "10.10.0.0"
 framework: "net8.0"
@@ -12,7 +12,7 @@ description: >
 category: "Metadata"
 owner: "cawdry-dev"
 artifacts:
-  - "Jellyfin.Plugin.MusicBrainzExtended.dll"
+  - "Jellyfin.Plugin.JelifiMusicBrainz.dll"
 changelog: |
   ### 1.0.0.0
   - Initial release. Forked from in-tree Jellyfin MusicBrainz provider.

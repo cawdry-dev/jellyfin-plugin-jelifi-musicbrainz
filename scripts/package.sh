@@ -5,8 +5,8 @@ set -euo pipefail
 
 VERSION="${1:-1.0.0.0}"
 TARGET_ABI="10.10.0.0"
-GUID="b5d2f3a9-3e6b-4c12-9f7d-1a5e7c0b9a42"
-NAME="MusicBrainz Extended"
+GUID="1446d25d-82be-4a1b-bc6c-0c42b1723b2f"
+NAME="Jelifi MusicBrainz"
 OVERVIEW="MusicBrainz metadata + release-type tags."
 DESCRIPTION="Drop-in replacement for the built-in MusicBrainz metadata provider that also tags albums with their release-group type (album, ep, single, live, compilation, soundtrack)."
 CATEGORY="Metadata"
@@ -14,14 +14,14 @@ OWNER="cawdry-dev"
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ARTIFACTS="$PROJECT_DIR/artifacts"
 STAGING="$ARTIFACTS/staging"
-ZIP_NAME="musicbrainzextended_${VERSION}.zip"
+ZIP_NAME="jelifimusicbrainz_${VERSION}.zip"
 
 export PATH="/usr/local/share/dotnet:$PATH"
 
 rm -rf "$ARTIFACTS"
 mkdir -p "$STAGING"
 
-dotnet publish "$PROJECT_DIR/Jellyfin.Plugin.MusicBrainzExtended" \
+dotnet publish "$PROJECT_DIR/Jellyfin.Plugin.JelifiMusicBrainz" \
   -c Release \
   -o "$STAGING" \
   /p:Version="$VERSION" \
@@ -49,7 +49,7 @@ EOF
 cd "$STAGING"
 rm -f Jellyfin.*.xml MetaBrainz.*.xml *.pdb
 zip -r "$ARTIFACTS/$ZIP_NAME" \
-  Jellyfin.Plugin.MusicBrainzExtended.dll \
+  Jellyfin.Plugin.JelifiMusicBrainz.dll \
   MetaBrainz.MusicBrainz.dll \
   meta.json \
   > /dev/null

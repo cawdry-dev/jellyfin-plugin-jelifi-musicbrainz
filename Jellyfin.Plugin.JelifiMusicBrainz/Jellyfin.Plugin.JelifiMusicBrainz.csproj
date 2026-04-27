@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <RootNamespace>Jellyfin.Plugin.MusicBrainzExtended</RootNamespace>
-    <AssemblyName>Jellyfin.Plugin.MusicBrainzExtended</AssemblyName>
+    <RootNamespace>Jellyfin.Plugin.JelifiMusicBrainz</RootNamespace>
+    <AssemblyName>Jellyfin.Plugin.JelifiMusicBrainz</AssemblyName>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>

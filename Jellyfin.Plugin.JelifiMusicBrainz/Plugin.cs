@@ -6,10 +6,10 @@ using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
-using Jellyfin.Plugin.MusicBrainzExtended.Configuration;
+using Jellyfin.Plugin.JelifiMusicBrainz.Configuration;
 using MetaBrainz.MusicBrainz;
 
-namespace Jellyfin.Plugin.MusicBrainzExtended;
+namespace Jellyfin.Plugin.JelifiMusicBrainz;
 
 /// <summary>
 /// Plugin instance.
@@ -40,16 +40,16 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public static Plugin? Instance { get; private set; }
 
     /// <inheritdoc />
-    public override Guid Id => new Guid("b5d2f3a9-3e6b-4c12-9f7d-1a5e7c0b9a42");
+    public override Guid Id => new Guid("1446d25d-82be-4a1b-bc6c-0c42b1723b2f");
 
     /// <inheritdoc />
-    public override string Name => "MusicBrainz Extended";
+    public override string Name => "Jelifi MusicBrainz";
 
     /// <inheritdoc />
     public override string Description => "MusicBrainz metadata provider with release-type tagging (album/single/ep/live/compilation/soundtrack).";
 
     /// <inheritdoc />
-    public override string ConfigurationFileName => "Jellyfin.Plugin.MusicBrainzExtended.xml";
+    public override string ConfigurationFileName => "Jellyfin.Plugin.JelifiMusicBrainz.xml";
 
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages()

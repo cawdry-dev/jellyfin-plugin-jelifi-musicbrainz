@@ -3,7 +3,7 @@ using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Providers;
 
-namespace Jellyfin.Plugin.MusicBrainzExtended;
+namespace Jellyfin.Plugin.JelifiMusicBrainz;
 
 /// <summary>
 /// MusicBrainz release group external id.
