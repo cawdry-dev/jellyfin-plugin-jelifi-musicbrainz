@@ -40,7 +40,7 @@ public class MusicBrainzArtistProvider : IRemoteMetadataProvider<MusicArtist, Ar
     }
 
     /// <inheritdoc />
-    public string Name => "MusicBrainz";
+    public string Name => "Jelifi MusicBrainz";
 
     private void ReloadConfig(object? sender, BasePluginConfiguration e)
     {

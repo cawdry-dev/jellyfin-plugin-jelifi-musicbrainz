@@ -40,7 +40,7 @@ public class MusicBrainzAlbumProvider : IRemoteMetadataProvider<MusicAlbum, Albu
     }
 
     /// <inheritdoc />
-    public string Name => "MusicBrainz";
+    public string Name => "Jelifi MusicBrainz";
 
     /// <inheritdoc />
     public int Order => 0;
