@@ -273,9 +273,50 @@ public class MusicBrainzAlbumProvider : IRemoteMetadataProvider<MusicAlbum, Albu
                 result.Item.SetProviderId(MetadataProvider.MusicBrainzReleaseGroup, releaseGroupId);
                 await ApplyReleaseGroupTagsAsync(result.Item, releaseGroupId, cancellationToken).ConfigureAwait(false);
             }
+
+            await PopulateAlbumArtistsAsync(result.Item, info, releaseId, cancellationToken).ConfigureAwait(false);
         }
 
         return result;
+    }
+
+    private async Task PopulateAlbumArtistsAsync(MusicAlbum album, AlbumInfo info, string? releaseId, CancellationToken cancellationToken)
+    {
+        // Prefer track-level AlbumArtists Jellyfin already aggregated from file tags.
+        if (info.AlbumArtists is { Count: > 0 })
+        {
+            album.AlbumArtists = info.AlbumArtists.ToList();
+        }
+        else if (!string.IsNullOrEmpty(releaseId))
+        {
+            try
+            {
+                var release = await _musicBrainzQuery.LookupReleaseAsync(new Guid(releaseId), Include.Artists, cancellationToken).ConfigureAwait(false);
+                if (release.ArtistCredit is { Count: > 0 })
+                {
+                    var names = release.ArtistCredit
+                        .Select(c => !string.IsNullOrWhiteSpace(c.Name) ? c.Name : c.Artist?.Name)
+                        .Where(n => !string.IsNullOrWhiteSpace(n))
+                        .Select(n => n!)
+                        .ToList();
+                    if (names.Count > 0)
+                    {
+                        album.AlbumArtists = names;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to fetch artist credits for release {ReleaseId}", releaseId);
+            }
+        }
+
+        // Carry through the album-artist MBID so Jellyfin can link to the artist entity.
+        var albumArtistMbid = info.GetMusicBrainzArtistId();
+        if (!string.IsNullOrEmpty(albumArtistMbid))
+        {
+            album.SetProviderId(MetadataProvider.MusicBrainzAlbumArtist, albumArtistMbid);
+        }
     }
 
     private async Task ApplyReleaseGroupTagsAsync(MusicAlbum album, string releaseGroupId, CancellationToken cancellationToken)
