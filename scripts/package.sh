@@ -4,6 +4,11 @@
 set -euo pipefail
 
 VERSION="${1:-1.0.0.0}"
+
+if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Error: '$VERSION' is not a valid 4-part version string (e.g. 1.0.7.0)" >&2
+  exit 1
+fi
 TARGET_ABI="10.10.0.0"
 GUID="1446d25d-82be-4a1b-bc6c-0c42b1723b2f"
 NAME="Jelifi MusicBrainz"
