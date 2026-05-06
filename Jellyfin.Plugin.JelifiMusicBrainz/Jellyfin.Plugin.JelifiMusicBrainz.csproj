@@ -21,6 +21,8 @@
   <ItemGroup>
     <None Remove="Configuration\config.html" />
     <EmbeddedResource Include="Configuration\config.html" />
+    <None Remove="Web\mb-type-tagger.js" />
+    <EmbeddedResource Include="Web\mb-type-tagger.js" />
   </ItemGroup>
 
 </Project>
