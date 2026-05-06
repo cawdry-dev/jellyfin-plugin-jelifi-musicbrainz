@@ -15,60 +15,100 @@
 (function () {
     'use strict';
 
-    // Keyed by Jellyfin item ID; value is the array of mb-type-* class names
-    // for that item (may be empty if the item has no mb-type-* tags).
+    const LOG = '[JelifiMB]';
+    console.log(LOG, 'mb-type-tagger.js loaded');
+
+    // Keyed by Jellyfin item ID; value is the array of mb-type-* class names.
     const tagCache = new Map();
 
-    /**
-     * Batch-fetch Tags for item IDs not yet in tagCache, then populate the cache.
-     * Uses the standard /Items?Ids=...&Fields=Tags endpoint – no plugin-specific
-     * API is required, so the script remains harmless even if the plugin is removed.
-     */
+    // -----------------------------------------------------------------
+    // Returns true once ApiClient exists and has an access token.
+    // Handles both ApiClient.isLoggedIn() (older) and ApiClient.accessToken()
+    // (newer jellyfin-apiclient builds where isLoggedIn was removed).
+    // -----------------------------------------------------------------
+    function clientReady() {
+        if (typeof ApiClient === 'undefined') return false;
+        if (typeof ApiClient.isLoggedIn === 'function') return ApiClient.isLoggedIn();
+        if (typeof ApiClient.accessToken === 'function') return !!ApiClient.accessToken();
+        // Last resort: if the object exists assume it's ready
+        return true;
+    }
+
+    // -----------------------------------------------------------------
+    // Batch-fetch Tags for item IDs not yet in tagCache.
+    // Does NOT silently cache failed IDs – they stay absent from the map
+    // so a later run can retry them.
+    // -----------------------------------------------------------------
     async function populateCache(ids) {
         const missing = ids.filter(id => !tagCache.has(id));
         if (!missing.length) return;
 
+        console.log(LOG, 'populateCache: fetching', missing.length, 'IDs');
+
+        let url;
         try {
-            const url = ApiClient.getUrl('Items', {
+            url = ApiClient.getUrl('Items', {
                 Ids: missing.join(','),
                 Fields: 'Tags',
                 Limit: missing.length,
             });
-            const result = await ApiClient.getJSON(url);
-            for (const item of result.Items ?? []) {
-                tagCache.set(item.Id, (item.Tags ?? []).filter(t => t.startsWith('mb-type-')));
-            }
-        } catch (_) {
-            // Network or auth errors – not critical, cards just stay unclassified
+        } catch (e) {
+            console.error(LOG, 'ApiClient.getUrl failed:', e);
+            return;
         }
 
-        // Mark IDs that returned no tags so we don't re-fetch them on the next run
+        console.log(LOG, 'populateCache: GET', url);
+
+        let result;
+        try {
+            result = await ApiClient.getJSON(url);
+        } catch (e) {
+            console.error(LOG, 'ApiClient.getJSON failed:', e);
+            return;
+        }
+
+        console.log(LOG, 'populateCache: response Items count =', result?.Items?.length ?? 0);
+
+        for (const item of result.Items ?? []) {
+            const mbTags = (item.Tags ?? []).filter(t => t.startsWith('mb-type-'));
+            tagCache.set(item.Id, mbTags);
+            if (mbTags.length) {
+                console.log(LOG, 'cached', item.Id, '->', mbTags);
+            }
+        }
+
+        // Only mark truly-no-tag items as empty (don't mark fetch-failed ones)
         for (const id of missing) {
             if (!tagCache.has(id)) tagCache.set(id, []);
         }
     }
 
-    /**
-     * Collect all [data-id] elements currently in the DOM, fetch their tags,
-     * then apply / refresh the mb-type-* CSS classes on each card.
-     */
+    // -----------------------------------------------------------------
+    // Find all [data-id] elements, populate the cache, apply classes.
+    // -----------------------------------------------------------------
     async function tagCards() {
         const cards = [...document.querySelectorAll('[data-id]')];
+        console.log(LOG, 'tagCards: found', cards.length, '[data-id] elements');
+
         if (!cards.length) return;
 
         const ids = [...new Set(cards.map(c => c.dataset.id).filter(Boolean))];
         await populateCache(ids);
 
+        let applied = 0;
         for (const card of cards) {
             const types = tagCache.get(card.dataset.id);
             if (!types?.length) continue;
 
-            // Remove stale mb-type-* classes left over from a previous run or
-            // a metadata refresh that changed the type.
             for (const cls of [...card.classList]) {
                 if (cls.startsWith('mb-type-')) card.classList.remove(cls);
             }
             card.classList.add(...types);
+            applied++;
+        }
+
+        if (applied) {
+            console.log(LOG, 'tagCards: applied mb-type-* classes to', applied, 'cards');
         }
     }
 
@@ -77,26 +117,31 @@
         return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
     }
 
-    // 400 ms quiet period prevents flooding on rapid DOM mutations (e.g. virtual
-    // scroll, image lazy-loads).
     const debouncedTagCards = debounce(tagCards, 400);
 
-    /**
-     * Kick off once ApiClient is available and the user is logged in.
-     * The SPA bootstraps asynchronously after our <script> runs, so we poll.
-     */
+    // -----------------------------------------------------------------
+    // Poll until ApiClient is ready, then wire up observers.
+    // -----------------------------------------------------------------
+    let pollCount = 0;
     function init() {
-        if (typeof ApiClient === 'undefined' || !ApiClient.isLoggedIn?.()) {
+        if (!clientReady()) {
+            pollCount++;
+            if (pollCount <= 5 || pollCount % 10 === 0) {
+                console.log(LOG, 'init: waiting for ApiClient (attempt', pollCount + ')');
+            }
             setTimeout(init, 500);
             return;
         }
 
-        // Watch for cards added by SPA navigation or lazy rendering
+        console.log(LOG, 'init: ApiClient ready, setting up observers');
+
         new MutationObserver(debouncedTagCards)
             .observe(document.body, { childList: true, subtree: true });
 
-        // Re-tag on hash-based page transitions (Jellyfin's SPA router)
-        window.addEventListener('hashchange', debouncedTagCards);
+        window.addEventListener('hashchange', () => {
+            console.log(LOG, 'hashchange ->', window.location.hash);
+            debouncedTagCards();
+        });
 
         tagCards();
     }
@@ -104,8 +149,6 @@
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
-        // Script injected after DOMContentLoaded – defer slightly so the SPA
-        // module graph has a chance to initialise ApiClient.
         setTimeout(init, 0);
     }
 })();
