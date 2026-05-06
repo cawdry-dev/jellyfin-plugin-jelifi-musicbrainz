@@ -16,6 +16,7 @@ using MetaBrainz.MusicBrainz;
 using MetaBrainz.MusicBrainz.Interfaces.Entities;
 using MetaBrainz.MusicBrainz.Interfaces.Searches;
 using Microsoft.Extensions.Logging;
+using TagLib.Id3v2;
 
 namespace Jellyfin.Plugin.JelifiMusicBrainz;
 
@@ -271,7 +272,27 @@ public class MusicBrainzAlbumProvider : IRemoteMetadataProvider<MusicAlbum, Albu
             if (!string.IsNullOrEmpty(releaseGroupId))
             {
                 result.Item.SetProviderId(MetadataProvider.MusicBrainzReleaseGroup, releaseGroupId);
-                await ApplyReleaseGroupTagsAsync(result.Item, releaseGroupId, cancellationToken).ConfigureAwait(false);
+            }
+
+            // Collect release types from embedded file tags and the MusicBrainz API, then apply.
+            var releaseTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var t in ReadReleaseTypesFromFiles(info.SongInfos))
+            {
+                releaseTypes.Add(t);
+            }
+
+            if (!string.IsNullOrEmpty(releaseGroupId))
+            {
+                foreach (var t in await FetchReleaseTypesFromApiAsync(releaseGroupId, cancellationToken).ConfigureAwait(false))
+                {
+                    releaseTypes.Add(t);
+                }
+            }
+
+            if (releaseTypes.Count > 0)
+            {
+                ApplyMbTypeTags(result.Item, releaseTypes);
             }
 
             await PopulateAlbumArtistsAsync(result.Item, info, releaseId, cancellationToken).ConfigureAwait(false);
@@ -319,39 +340,145 @@ public class MusicBrainzAlbumProvider : IRemoteMetadataProvider<MusicAlbum, Albu
         }
     }
 
-    private async Task ApplyReleaseGroupTagsAsync(MusicAlbum album, string releaseGroupId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Reads RELEASETYPE values from the first available audio file in the song list.
+    /// Supports Vorbis comments (FLAC/OGG) and ID3v2 tags (MP3/etc.).
+    /// Returns raw type strings such as "Album", "Live", "Compilation".
+    /// </summary>
+    private IEnumerable<string> ReadReleaseTypesFromFiles(IReadOnlyList<SongInfo> songInfos)
+    {
+        var paths = songInfos
+            .Select(s => s.Path)
+            .Where(p => !string.IsNullOrEmpty(p))
+            .Select(p => p!)
+            .ToList();
+
+        foreach (var path in paths)
+        {
+            try
+            {
+                using var tagFile = TagLib.File.Create(path);
+
+                var types = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                // Vorbis comments (FLAC, OGG Vorbis, Opus)
+                // Picard writes one RELEASETYPE field per type value.
+                if (tagFile.GetTag(TagLib.TagTypes.Xiph) is TagLib.Ogg.XiphComment xiph)
+                {
+                    foreach (var fieldName in new[] { "RELEASETYPE", "MUSICBRAINZ_RELEASEGROUPTYPE" })
+                    {
+                        foreach (var v in xiph.GetField(fieldName))
+                        {
+                            if (!string.IsNullOrWhiteSpace(v))
+                            {
+                                types.Add(v.Trim());
+                            }
+                        }
+                    }
+                }
+
+                // ID3v2 (MP3, AIFF, …)
+                // Picard writes TXXX frames; the description may be "RELEASETYPE" or
+                // "MusicBrainz Release Group Type" / "MUSICBRAINZ_RELEASEGROUPTYPE".
+                if (tagFile.GetTag(TagLib.TagTypes.Id3v2) is TagLib.Id3v2.Tag id3)
+                {
+                    var descriptionVariants = new[]
+                    {
+                        "RELEASETYPE",
+                        "MUSICBRAINZ_RELEASEGROUPTYPE",
+                        "MusicBrainz Release Group Type"
+                    };
+
+                    foreach (var frame in id3.GetFrames<UserTextInformationFrame>())
+                    {
+                        if (!descriptionVariants.Contains(frame.Description, StringComparer.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        foreach (var text in frame.Text)
+                        {
+                            // Values may be newline- or slash-separated within a single frame.
+                            foreach (var part in text.Split(new[] { '\n', '/', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                            {
+                                var trimmed = part.Trim();
+                                if (!string.IsNullOrWhiteSpace(trimmed))
+                                {
+                                    types.Add(trimmed);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (types.Count > 0)
+                {
+                    _logger.LogDebug("Read RELEASETYPE {Types} from file {Path}", string.Join(", ", types), path);
+                    return types;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Could not read tags from {Path}", path);
+            }
+        }
+
+        return Enumerable.Empty<string>();
+    }
+
+    /// <summary>
+    /// Fetches primary and secondary release group types from the MusicBrainz API.
+    /// Returns raw type strings such as "Album", "Live", "Compilation".
+    /// </summary>
+    private async Task<IEnumerable<string>> FetchReleaseTypesFromApiAsync(string releaseGroupId, CancellationToken cancellationToken)
     {
         try
         {
             var rg = await _musicBrainzQuery.LookupReleaseGroupAsync(new Guid(releaseGroupId), Include.None, null, cancellationToken).ConfigureAwait(false);
-            var tags = new List<string>(album.Tags ?? Array.Empty<string>());
-            tags.RemoveAll(t => t.StartsWith("mb-type-", StringComparison.OrdinalIgnoreCase));
+            var types = new List<string>();
 
-            void Add(string? value)
+            if (!string.IsNullOrWhiteSpace(rg.PrimaryType))
             {
-                if (string.IsNullOrWhiteSpace(value))
-                {
-                    return;
-                }
-
-                tags.Add("mb-type-" + value.ToLowerInvariant().Replace(" ", string.Empty, StringComparison.Ordinal));
+                types.Add(rg.PrimaryType!);
             }
 
-            Add(rg.PrimaryType);
             if (rg.SecondaryTypes is not null)
             {
                 foreach (var s in rg.SecondaryTypes)
                 {
-                    Add(s);
+                    if (!string.IsNullOrWhiteSpace(s))
+                    {
+                        types.Add(s);
+                    }
                 }
             }
 
-            album.Tags = tags.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            return types;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to fetch release-group types for {ReleaseGroupId}", releaseGroupId);
+            return Enumerable.Empty<string>();
         }
+    }
+
+    /// <summary>
+    /// Applies the provided release type strings to the album as "mb-type-{value}" Jellyfin tags.
+    /// Existing mb-type-* tags are replaced to avoid duplication on re-scan.
+    /// </summary>
+    private static void ApplyMbTypeTags(MusicAlbum album, IEnumerable<string> types)
+    {
+        var tags = new List<string>(album.Tags ?? Array.Empty<string>());
+        tags.RemoveAll(t => t.StartsWith("mb-type-", StringComparison.OrdinalIgnoreCase));
+
+        foreach (var type in types)
+        {
+            // Normalise: lowercase, strip internal spaces (e.g. "Mixtape/Street" → "mixtape/street")
+            var normalised = "mb-type-" + type.ToLowerInvariant().Replace(" ", string.Empty, StringComparison.Ordinal);
+            tags.Add(normalised);
+        }
+
+        album.Tags = tags.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     /// <inheritdoc />
