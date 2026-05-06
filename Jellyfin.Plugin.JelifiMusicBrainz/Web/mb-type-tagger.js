@@ -1,16 +1,11 @@
 /* Jelifi MusicBrainz – mb-type card tagger
  *
- * Reads mb-type-* Jellyfin tags for every album card in the web UI and adds
- * matching CSS classes so that a custom stylesheet can group / style albums by
- * release type on artist pages (or anywhere else cards are rendered).
+ * On artist detail pages, finds the visible itemsContainer, fetches the
+ * first mb-type-* tag for each album card, applies it as a CSS class, and
+ * marks the container with mb-sections-active so CSS rules can group albums
+ * into sections by release type.
  *
- * Example classes applied to a card element:
- *   mb-type-album   mb-type-single   mb-type-ep   mb-type-live
- *   mb-type-compilation   mb-type-soundtrack   mb-type-remix
- *
- * This script is injected into index.html at server startup by HtmlModifier.cs.
- * It is an unofficial mechanism – Jellyfin does not formally support plugins
- * altering the web client HTML.
+ * Injected into index.html at server startup by HtmlModifier.cs.
  */
 (function () {
     'use strict';
@@ -18,27 +13,34 @@
     const LOG = '[JelifiMB]';
     console.log(LOG, 'mb-type-tagger.js loaded');
 
-    // Keyed by Jellyfin item ID; value is the array of mb-type-* class names.
+    // item ID → first mb-type-* string (e.g. "mb-type-album"), or "" if none.
+    // Storing a single string keeps the API simple and puts each album in
+    // exactly one section.
     const tagCache = new Map();
 
-    // -----------------------------------------------------------------
-    // Returns true once ApiClient exists and has an access token.
-    // Handles both ApiClient.isLoggedIn() (older) and ApiClient.accessToken()
-    // (newer jellyfin-apiclient builds where isLoggedIn was removed).
-    // -----------------------------------------------------------------
-    function clientReady() {
-        if (typeof ApiClient === 'undefined') return false;
-        if (typeof ApiClient.isLoggedIn === 'function') return ApiClient.isLoggedIn();
-        if (typeof ApiClient.accessToken === 'function') return !!ApiClient.accessToken();
-        // Last resort: if the object exists assume it's ready
-        return true;
+    // ------------------------------------------------------------------
+    // Returns the visible itemsContainer on an artist detail page, or null.
+    // Requirements:
+    //   • .detailPageContent must exist in DOM (artist/detail page)
+    //   • container must have offsetWidth > 0 || offsetHeight > 0 (visible)
+    // ------------------------------------------------------------------
+    function findContainer() {
+        const detailPage = document.querySelector('.detailPageContent');
+        if (!detailPage) return null;
+
+        for (const el of detailPage.querySelectorAll('.itemsContainer')) {
+            if (el.offsetWidth > 0 || el.offsetHeight > 0) {
+                return el;
+            }
+        }
+        return null;
     }
 
-    // -----------------------------------------------------------------
-    // Batch-fetch Tags for item IDs not yet in tagCache.
-    // Does NOT silently cache failed IDs – they stay absent from the map
-    // so a later run can retry them.
-    // -----------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // Fetch the first mb-type-* tag for any IDs not yet in tagCache.
+    // Does NOT mark failed fetches as empty – they stay absent so a later
+    // run can retry.
+    // ------------------------------------------------------------------
     async function populateCache(ids) {
         const missing = ids.filter(id => !tagCache.has(id));
         if (!missing.length) return;
@@ -57,8 +59,6 @@
             return;
         }
 
-        console.log(LOG, 'populateCache: GET', url);
-
         let result;
         try {
             result = await ApiClient.getJSON(url);
@@ -70,34 +70,29 @@
         console.log(LOG, 'populateCache: response Items count =', result?.Items?.length ?? 0);
 
         for (const item of result.Items ?? []) {
-            const mbTags = (item.Tags ?? []).filter(t => t.startsWith('mb-type-'));
-            tagCache.set(item.Id, mbTags);
-            if (mbTags.length) {
-                console.log(LOG, 'cached', item.Id, '->', mbTags);
-            }
+            const first = (item.Tags ?? []).find(t => t.startsWith('mb-type-')) ?? '';
+            tagCache.set(item.Id, first);
+            if (first) console.log(LOG, 'cached', item.Id, '->', first);
         }
 
-        // Only mark truly-no-tag items as empty (don't mark fetch-failed ones)
+        // Mark items that had no mb-type-* tag so we don't re-fetch them.
         for (const id of missing) {
-            if (!tagCache.has(id)) tagCache.set(id, []);
+            if (!tagCache.has(id)) tagCache.set(id, '');
         }
     }
 
-    // -----------------------------------------------------------------
-    // Find all [data-id] elements, populate the cache, apply classes.
-    // -----------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // Main work: find the visible container, populate cache, apply classes.
+    // ------------------------------------------------------------------
     async function tagCards() {
-        // querySelectorAll spans the entire document including SPA views that are
-        // still mounted but hidden (e.g. the home-page "Recently Added" scroller).
-        // Filter to cards that are actually rendered into the layout:
-        //   offsetParent === null  →  element or ancestor is display:none (hidden view)
-        //   data-context="home"   →  explicit home-page card, skip even if somehow visible
-        const cards = [...document.querySelectorAll('[data-id]')].filter(card =>
-            card.offsetParent !== null &&
-            card.getAttribute('data-context') !== 'home'
-        );
-        console.log(LOG, 'tagCards: found', cards.length, 'visible [data-id] elements');
+        const container = findContainer();
+        if (!container) {
+            console.log(LOG, 'tagCards: no visible itemsContainer in .detailPageContent – skipping');
+            return;
+        }
 
+        const cards = [...container.querySelectorAll('[data-id]')];
+        console.log(LOG, 'tagCards: found', cards.length, 'cards in visible container');
         if (!cards.length) return;
 
         const ids = [...new Set(cards.map(c => c.dataset.id).filter(Boolean))];
@@ -105,18 +100,20 @@
 
         let applied = 0;
         for (const card of cards) {
-            const types = tagCache.get(card.dataset.id);
-            if (!types?.length) continue;
+            const type = tagCache.get(card.dataset.id);
+            if (!type) continue;
 
+            // Remove any stale mb-type-* class before adding the fresh one.
             for (const cls of [...card.classList]) {
                 if (cls.startsWith('mb-type-')) card.classList.remove(cls);
             }
-            card.classList.add(...types);
+            card.classList.add(type);
             applied++;
         }
 
         if (applied) {
-            console.log(LOG, 'tagCards: applied mb-type-* classes to', applied, 'cards');
+            console.log(LOG, 'tagCards: applied classes to', applied, 'cards; activating container');
+            container.classList.add('mb-sections-active');
         }
     }
 
@@ -127,9 +124,16 @@
 
     const debouncedTagCards = debounce(tagCards, 400);
 
-    // -----------------------------------------------------------------
-    // Poll until ApiClient is ready, then wire up observers.
-    // -----------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // ApiClient readiness check (handles both isLoggedIn and accessToken APIs).
+    // ------------------------------------------------------------------
+    function clientReady() {
+        if (typeof ApiClient === 'undefined') return false;
+        if (typeof ApiClient.isLoggedIn === 'function') return ApiClient.isLoggedIn();
+        if (typeof ApiClient.accessToken === 'function') return !!ApiClient.accessToken();
+        return true;
+    }
+
     let pollCount = 0;
     function init() {
         if (!clientReady()) {
