@@ -87,8 +87,16 @@
     // Find all [data-id] elements, populate the cache, apply classes.
     // -----------------------------------------------------------------
     async function tagCards() {
-        const cards = [...document.querySelectorAll('[data-id]')];
-        console.log(LOG, 'tagCards: found', cards.length, '[data-id] elements');
+        // querySelectorAll spans the entire document including SPA views that are
+        // still mounted but hidden (e.g. the home-page "Recently Added" scroller).
+        // Filter to cards that are actually rendered into the layout:
+        //   offsetParent === null  →  element or ancestor is display:none (hidden view)
+        //   data-context="home"   →  explicit home-page card, skip even if somehow visible
+        const cards = [...document.querySelectorAll('[data-id]')].filter(card =>
+            card.offsetParent !== null &&
+            card.getAttribute('data-context') !== 'home'
+        );
+        console.log(LOG, 'tagCards: found', cards.length, 'visible [data-id] elements');
 
         if (!cards.length) return;
 
