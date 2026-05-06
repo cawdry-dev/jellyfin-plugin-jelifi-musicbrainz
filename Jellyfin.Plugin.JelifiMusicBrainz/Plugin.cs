@@ -8,6 +8,7 @@ using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 using Jellyfin.Plugin.JelifiMusicBrainz.Configuration;
 using MetaBrainz.MusicBrainz;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jellyfin.Plugin.JelifiMusicBrainz;
@@ -18,6 +19,7 @@ namespace Jellyfin.Plugin.JelifiMusicBrainz;
 public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
     private readonly IApplicationPaths _applicationPaths;
+    private readonly ILogger<Plugin> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Plugin"/> class.
@@ -25,24 +27,31 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// <param name="applicationPaths">Instance of the <see cref="IApplicationPaths"/> interface.</param>
     /// <param name="xmlSerializer">Instance of the <see cref="IXmlSerializer"/> interface.</param>
     /// <param name="applicationHost">Instance of the <see cref="IApplicationHost"/> interface.</param>
-    public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer, IApplicationHost applicationHost)
+    /// <param name="logger">Instance of the <see cref="ILogger{Plugin}"/> interface.</param>
+    public Plugin(
+        IApplicationPaths applicationPaths,
+        IXmlSerializer xmlSerializer,
+        IApplicationHost applicationHost,
+        ILogger<Plugin> logger)
         : base(applicationPaths, xmlSerializer)
     {
         Instance = this;
         _applicationPaths = applicationPaths;
+        _logger = logger;
 
         // TODO: Change this to "JellyfinMusicBrainzPlugin" once we take it out of the server repo.
         Query.DefaultUserAgent.Add(new ProductInfoHeaderValue(applicationHost.Name.Replace(' ', '-'), applicationHost.ApplicationVersionString));
         Query.DefaultUserAgent.Add(new ProductInfoHeaderValue($"({applicationHost.ApplicationUserAgentAddress})"));
         Query.DelayBetweenRequests = Instance.Configuration.RateLimit;
         Query.DefaultServer = Instance.Configuration.Server;
+
+        new HtmlModifier(applicationPaths, logger).InjectScript();
     }
 
     /// <inheritdoc />
     public override void OnUninstalling()
     {
-        // Remove the injected script block from index.html when the plugin is uninstalled.
-        new HtmlModifier(_applicationPaths, NullLogger<HtmlModifier>.Instance).RemoveScript();
+        new HtmlModifier(_applicationPaths, NullLogger.Instance).RemoveScript();
     }
 
     /// <summary>
