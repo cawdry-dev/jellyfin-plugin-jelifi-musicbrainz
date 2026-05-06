@@ -15,6 +15,7 @@
     <PackageReference Include="Jellyfin.Model" Version="10.10.6" />
     <PackageReference Include="Jellyfin.Extensions" Version="10.10.6" />
     <PackageReference Include="MetaBrainz.MusicBrainz" Version="6.1.0" />
+    <PackageReference Include="TagLibSharp" Version="2.3.0" />
   </ItemGroup>
 
   <ItemGroup>
