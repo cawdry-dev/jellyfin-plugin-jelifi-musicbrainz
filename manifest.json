@@ -8,6 +8,14 @@
     "category": "Metadata",
     "versions": [
       {
+        "version": "1.0.12.0",
+        "changelog": "Release 1.0.12.0",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/cawdry-dev/jellyfin-plugin-jelifi-musicbrainz/releases/download/v1.0.12.0/jelifimusicbrainz_1.0.12.0.zip",
+        "checksum": "2e72d75fd59ef67d7cfe9a371edb67b5",
+        "timestamp": "2026-05-06T17:11:51Z"
+      },
+      {
         "version": "1.0.11.0",
         "changelog": "Release 1.0.11.0",
         "targetAbi": "10.10.0.0",
