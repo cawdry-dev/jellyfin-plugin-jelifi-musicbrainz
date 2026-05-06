@@ -45,14 +45,24 @@ public class HtmlModifier
     {
         var indexPath = Path.Combine(_applicationPaths.WebPath, "index.html");
 
+        // Always log the resolved path so it can be verified in the server log
+        // even before we know whether the file exists.
+        _logger.LogInformation(
+            "[JelifiMB] WebPath = '{WebPath}'  →  targeting '{IndexPath}'",
+            _applicationPaths.WebPath,
+            indexPath);
+
         if (!File.Exists(indexPath))
         {
             _logger.LogWarning(
-                "[JelifiMB] index.html not found at {Path}. " +
-                "JS injection skipped (headless server or non-standard web path?).",
+                "[JelifiMB] index.html not found at '{Path}'. " +
+                "JS injection skipped. " +
+                "Run: grep -n 'jelifi-mb-type' \"{Path}\" to confirm after a successful write.",
                 indexPath);
             return;
         }
+
+        _logger.LogInformation("[JelifiMB] index.html found at '{Path}', proceeding with injection.", indexPath);
 
         try
         {
