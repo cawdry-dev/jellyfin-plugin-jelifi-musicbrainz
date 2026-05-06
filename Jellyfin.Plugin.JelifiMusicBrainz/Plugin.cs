@@ -8,6 +8,7 @@ using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 using Jellyfin.Plugin.JelifiMusicBrainz.Configuration;
 using MetaBrainz.MusicBrainz;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Jellyfin.Plugin.JelifiMusicBrainz;
 
@@ -16,6 +17,8 @@ namespace Jellyfin.Plugin.JelifiMusicBrainz;
 /// </summary>
 public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
+    private readonly IApplicationPaths _applicationPaths;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="Plugin"/> class.
     /// </summary>
@@ -26,12 +29,20 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         : base(applicationPaths, xmlSerializer)
     {
         Instance = this;
+        _applicationPaths = applicationPaths;
 
         // TODO: Change this to "JellyfinMusicBrainzPlugin" once we take it out of the server repo.
         Query.DefaultUserAgent.Add(new ProductInfoHeaderValue(applicationHost.Name.Replace(' ', '-'), applicationHost.ApplicationVersionString));
         Query.DefaultUserAgent.Add(new ProductInfoHeaderValue($"({applicationHost.ApplicationUserAgentAddress})"));
         Query.DelayBetweenRequests = Instance.Configuration.RateLimit;
         Query.DefaultServer = Instance.Configuration.Server;
+    }
+
+    /// <inheritdoc />
+    public override void OnUninstalling()
+    {
+        // Remove the injected script block from index.html when the plugin is uninstalled.
+        new HtmlModifier(_applicationPaths, NullLogger<HtmlModifier>.Instance).RemoveScript();
     }
 
     /// <summary>
