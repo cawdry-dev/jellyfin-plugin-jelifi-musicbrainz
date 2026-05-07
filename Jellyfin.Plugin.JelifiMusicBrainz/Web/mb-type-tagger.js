@@ -114,7 +114,46 @@
         if (applied) {
             console.log(LOG, 'tagCards: applied classes to', applied, 'cards; activating container');
             container.classList.add('mb-sections-active');
+            injectSectionHeaders(container);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Known release types in display order. Used to insert section headers
+    // in a deterministic sequence regardless of card order in the DOM.
+    // ------------------------------------------------------------------
+    const MB_TYPES = [
+        { cls: 'mb-type-album',        label: 'Albums' },
+        { cls: 'mb-type-ep',           label: 'EPs' },
+        { cls: 'mb-type-single',       label: 'Singles' },
+        { cls: 'mb-type-live',         label: 'Live' },
+        { cls: 'mb-type-compilation',  label: 'Compilations' },
+        { cls: 'mb-type-soundtrack',   label: 'Soundtracks' },
+        { cls: 'mb-type-other',        label: 'Other' },
+    ];
+
+    // ------------------------------------------------------------------
+    // Insert a labelled header div before the first card of each type.
+    // Called AFTER all card mb-type-* classes have been applied.
+    // ------------------------------------------------------------------
+    function injectSectionHeaders(container) {
+        for (const old of [...container.querySelectorAll('.mb-section-header')]) {
+            old.remove();
+        }
+
+        let injected = 0;
+        for (const { cls, label } of MB_TYPES) {
+            const firstCard = container.querySelector(`.card.${cls}`);
+            if (!firstCard) continue;
+
+            const header = document.createElement('div');
+            header.className = `mb-section-header mb-section-${cls}`;
+            header.textContent = label;
+            container.insertBefore(header, firstCard);
+            injected++;
+        }
+
+        console.log(LOG, 'injectSectionHeaders: injected', injected, 'headers');
     }
 
     function debounce(fn, ms) {
